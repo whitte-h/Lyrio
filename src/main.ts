@@ -1,6 +1,6 @@
 import {Editor, Plugin, setIcon} from 'obsidian';
 import {DEFAULT_SETTINGS, LyrioSettings, LyrioSettingTab} from "./settings";
-import {detectModifiedSection, syncSection, isNewSection, getExistingSectionContent} from "./songHelper";
+import {detectModifiedSection, syncSection, syncSectionMarker, isNewSection, getExistingSectionContent} from "./songHelper";
 import {createColorPlugin, getTagColor, refreshEffect} from "./colorPlugin";
 import {
 	TimestampData,
@@ -12,6 +12,8 @@ import {
 	cleanupTimestamps,
 	findMostRecentInstance,
 } from "./timestampManager";
+
+const DEBUG_TIMESTAMPS = false;
 
 export default class LyrioPlugin extends Plugin {
 	settings: LyrioSettings;
@@ -118,7 +120,10 @@ export default class LyrioPlugin extends Plugin {
 						const existingContent = getExistingSectionContent(currentContent, modified.sectionName, useClosingTag);
 
 						if (existingContent) {
-							const existingLines = existingContent.split('\n');
+							const isException = this.isExceptionTag(modified.sectionName);
+							const existingLines = isException
+								? existingContent.split('\n').slice(0, 1)
+								: existingContent.split('\n');
 							const markerRegex = new RegExp(`^::${modified.sectionName}(\\s+\\[.*?\\])?$`);
 
 							let newSectionLineNum = -1;
@@ -175,7 +180,7 @@ export default class LyrioPlugin extends Plugin {
 							}
 						}
 					} else {
-						const markerRegex = new RegExp(`^::${modified.sectionName}(\\s+\\[.*?\\])?$`);
+						const markerRegex = new RegExp(`^::${modified.sectionName}(\\*)?(\\s*\\|[^|]+\\|)?(\\s+\\[.*?\\])?$`);
 						let modifiedSectionLineNum = -1;
 						for (let j = cursorPos.line; j >= 0; j--) {
 							const line = currentLines[j];
@@ -200,13 +205,21 @@ export default class LyrioPlugin extends Plugin {
 
 							if (shouldSync) {
 								const now = Date.now();
-								const syncedContent = syncSection(
-									currentContent,
-									modified.sectionName,
-									modified.newContent,
-									this.settings.debugMode ? now : undefined,
-									useClosingTag,
-								);
+								const isException = this.isExceptionTag(modified.sectionName);
+								const syncedContent = isException
+									? syncSectionMarker(
+										currentContent,
+										modified.sectionName,
+										modified.newContent.split('\n')[0] ?? '',
+										useClosingTag,
+									)
+									: syncSection(
+										currentContent,
+										modified.sectionName,
+										modified.newContent,
+										DEBUG_TIMESTAMPS ? now : undefined,
+										useClosingTag,
+									);
 
 								if (syncedContent !== currentContent) {
 									editor.getDoc().setValue(syncedContent);
@@ -260,10 +273,14 @@ export default class LyrioPlugin extends Plugin {
 		}, 300);
 	}
 
+	private isExceptionTag(name: string): boolean {
+		return this.settings.exceptionTags.some(t => t.toLowerCase() === name.toLowerCase());
+	}
+
 	private extractSectionContentAtLine(content: string, sectionName: string, lineNumber: number): string | null {
 		const lines = content.split('\n');
 		const line = lines[lineNumber];
-		if (line && line.match(new RegExp(`^::${sectionName}(\\s+\\[.*?\\])?$`))) {
+		if (line && line.match(new RegExp(`^::${sectionName}(\\*)?(\\s*\\|[^|]+\\|)?(\\s+\\[.*?\\])?$`))) {
 			const contentLines: string[] = [line];
 			for (let j = lineNumber + 1; j < lines.length; j++) {
 				const nextLine = lines[j];

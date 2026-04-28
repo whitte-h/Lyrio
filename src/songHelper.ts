@@ -93,6 +93,8 @@ export function findSectionInstances(content: string, sectionName: string, useCl
 
 export function isNewSection(sectionContent: string): boolean {
 	const lines = sectionContent.split('\n');
+	// A marker with inline pipe content (e.g. ::Chorus | Am C F G |) counts as having content
+	if (lines[0] && /^::\w+(\*)?\s*\|[^|]+\|/.test(lines[0])) return false;
 	return lines.filter(l => l.trim() !== '' && !l.match(/^::\w+/)).length === 0;
 }
 
@@ -174,6 +176,25 @@ export function detectModifiedSection(
 	}
 
 	return null;
+}
+
+export function syncSectionMarker(
+	content: string,
+	sectionName: string,
+	newMarkerLine: string,
+	useClosingTag = false,
+): string {
+	const lines = content.split('\n');
+	const sections = findSectionInstances(content, sectionName, useClosingTag);
+	if (sections.length === 0) return content;
+
+	const cleanMarker = newMarkerLine.replace(/\s*\[\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\]$/, '');
+
+	for (const section of [...sections].sort((a, b) => b.startLine - a.startLine)) {
+		lines.splice(section.startLine, 1, cleanMarker);
+	}
+
+	return lines.join('\n');
 }
 
 export async function applySectionSync(editor: Editor, sectionName: string, newContent: string): Promise<void> {

@@ -20,7 +20,7 @@ export function generateSectionKey(sectionName: string, lineNumber: number): str
  */
 export function getInstanceLineNumbers(lines: string[], sectionName: string): number[] {
 	const lineNumbers: number[] = [];
-	const regex = new RegExp(`^::${sectionName}(\\s+\\[.*?\\])?$`);
+	const regex = new RegExp(`^::${sectionName}(\\*)?(\\s*\\|[^|]+\\|)?(\\s+\\[.*?\\])?$`);
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 		if (line && regex.test(line)) {
@@ -178,7 +178,7 @@ export function cleanupTimestamps(
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 		if (line) {
-			const match = line.match(/^::(\w+)(\s+\[.*?\])?$/);
+			const match = line.match(/^::(\w+)(\*)?(\s*\|[^|]+\|)?(\s+\[.*?\])?$/);
 			if (match && match[1]) {
 				const sectionName = match[1];
 				if (!currentSections.has(sectionName)) {

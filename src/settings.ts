@@ -3,16 +3,16 @@ import LyrioPlugin from "./main";
 
 export interface LyrioSettings {
 	autoSyncEnabled: boolean;
-	debugMode: boolean;
 	colorBlocks: boolean;
 	useClosingTag: boolean;
+	exceptionTags: string[];
 }
 
 export const DEFAULT_SETTINGS: LyrioSettings = {
 	autoSyncEnabled: true,
-	debugMode: false,
 	colorBlocks: false,
 	useClosingTag: false,
+	exceptionTags: ['Verse'],
 }
 
 export class LyrioSettingTab extends PluginSettingTab {
@@ -62,14 +62,14 @@ export class LyrioSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Debug mode')
-			.setDesc('Show last-synced timestamp next to each section tag')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.debugMode)
+			.setName('Exception tags')
+			.setDesc('Tags that sync only their bar content (| … |), not body lyrics. Comma-separated.')
+			.addText(text => text
+				.setPlaceholder('Verse, Bridge, …')
+				.setValue(this.plugin.settings.exceptionTags.join(', '))
 				.onChange(async (value) => {
-					this.plugin.settings.debugMode = value;
+					this.plugin.settings.exceptionTags = value.split(',').map(t => t.trim()).filter(Boolean);
 					await this.plugin.saveSettings();
-					this.plugin.applySettingsChange();
 				}));
 
 		containerEl.createEl('div', {
