@@ -1,99 +1,290 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import {Editor, Plugin, setIcon} from 'obsidian';
+import {DEFAULT_SETTINGS, LyrioSettings, LyrioSettingTab} from "./settings";
+import {detectModifiedSection, syncSection, isNewSection, getExistingSectionContent} from "./songHelper";
+import {createColorPlugin, getTagColor, refreshEffect} from "./colorPlugin";
+import {
+	TimestampData,
+	getInstanceLineNumbers,
+	setInstanceTimestamp,
+	shouldSyncSection,
+	syncTimestamps,
+	copyTimestampToNewInstance,
+	cleanupTimestamps,
+	findMostRecentInstance,
+} from "./timestampManager";
 
-// Remember to rename these classes and interfaces!
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class LyrioPlugin extends Plugin {
+	settings: LyrioSettings;
+	private timestamps: TimestampData = {};
+	private lastContent: string = '';
+	private syncTimeout: NodeJS.Timeout | null = null;
+	private statusBarItem: HTMLElement | null = null;
 
 	async onload() {
 		await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
+		this.addSettingTab(new LyrioSettingTab(this.app, this));
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
+		this.statusBarItem = this.addStatusBarItem();
+		setIcon(this.statusBarItem, 'refresh-cw');
+		this.statusBarItem.addClass('lyrio-status');
+		this.statusBarItem.style.display = 'none';
 
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
+		this.registerEditorExtension(
+			createColorPlugin(
+				() => this.settings.colorBlocks,
+				() => this.settings.useClosingTag,
+			)
+		);
 
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
+		this.registerMarkdownPostProcessor((el) => {
+			el.querySelectorAll('p').forEach((p) => {
+				const text = p.textContent ?? '';
+				const m = text.match(/^::(\w+)(\*)?/);
+				if (m?.[1]) {
+					(p as HTMLElement).style.color = getTagColor(m[1]);
+					(p as HTMLElement).style.fontWeight = '600';
 				}
-				return false;
+			});
+		});
+
+		this.registerEvent(
+			this.app.workspace.on('editor-change', (editor: Editor) => {
+				this.handleEditorChange(editor);
+			})
+		);
+
+		this.addCommand({
+			id: 'lyrio-show-sections',
+			name: 'Show song sections in this note',
+			editorCallback: (editor: Editor) => {
+				const lines = editor.getDoc().getValue().split('\n');
+				const sections = lines
+					.map((line, idx) => ({line, idx}))
+					.filter(({line}) => line.match(/^::\w+/))
+					.map(({line, idx}) => `Line ${idx + 1}: ${line}`);
+				console.log('Lyrio sections:', sections.length ? sections : '(none)');
 			}
 		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
 	}
 
 	onunload() {
+		if (this.syncTimeout) clearTimeout(this.syncTimeout);
+	}
+
+	applySettingsChange() {
+		this.lastContent = '';
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			const cm = (leaf.view as any).editor?.cm;
+			if (cm && typeof cm.dispatch === 'function') {
+				cm.dispatch({ effects: refreshEffect.of(undefined) });
+			}
+		});
+	}
+
+	private setSyncing(active: boolean) {
+		if (!this.statusBarItem) return;
+		this.statusBarItem.style.display = active ? '' : 'none';
+	}
+
+	private handleEditorChange(editor: Editor) {
+		if (!this.settings.autoSyncEnabled) return;
+
+		const currentContent = editor.getDoc().getValue();
+		const currentLines = currentContent.split('\n');
+		const useClosingTag = this.settings.useClosingTag;
+
+		this.timestamps = cleanupTimestamps(this.timestamps, currentLines);
+		this.setSyncing(true);
+
+		if (this.syncTimeout) clearTimeout(this.syncTimeout);
+
+		this.syncTimeout = setTimeout(async () => {
+			try {
+				const cursorPos = editor.getCursor();
+				const modified = detectModifiedSection(this.lastContent, currentContent, useClosingTag);
+
+				if (modified) {
+					if (modified.isLocal) {
+						this.lastContent = currentContent;
+						await this.saveSettings();
+						return;
+					}
+
+					const allLineNumbers = getInstanceLineNumbers(currentLines, modified.sectionName);
+					const isNew = isNewSection(modified.newContent);
+
+					if (isNew) {
+						const existingContent = getExistingSectionContent(currentContent, modified.sectionName, useClosingTag);
+
+						if (existingContent) {
+							const existingLines = existingContent.split('\n');
+							const markerRegex = new RegExp(`^::${modified.sectionName}(\\s+\\[.*?\\])?$`);
+
+							let newSectionLineNum = -1;
+							for (let i = 0; i < currentLines.length; i++) {
+								const line = currentLines[i];
+								if (line && markerRegex.test(line)) {
+									let isEmptySection = true;
+									for (let j = i + 1; j < currentLines.length && currentLines[j]?.trim() !== ''; j++) {
+										const nextLine = currentLines[j];
+										if (nextLine && !nextLine.match(/^::\w+/)) {
+											isEmptySection = false;
+											break;
+										}
+									}
+									if (isEmptySection) {
+										newSectionLineNum = i;
+										break;
+									}
+								}
+							}
+
+							if (newSectionLineNum !== -1) {
+								const beforeLines = currentLines.slice(0, newSectionLineNum);
+								const afterLines = currentLines.slice(newSectionLineNum + 1);
+
+								let endIdx = 0;
+								while (endIdx < afterLines.length && (afterLines[endIdx]?.trim() ?? '') !== '') {
+									endIdx++;
+								}
+
+								const updatedContent = [
+									...beforeLines,
+									...existingLines,
+									...afterLines.slice(endIdx),
+								].join('\n');
+
+								editor.getDoc().setValue(updatedContent);
+								editor.setCursor(cursorPos);
+
+								const existingLineNumbers = getInstanceLineNumbers(currentLines, modified.sectionName);
+								const mostRecentLine = findMostRecentInstance(this.timestamps, modified.sectionName, existingLineNumbers);
+								if (mostRecentLine !== null) {
+									this.timestamps = copyTimestampToNewInstance(
+										this.timestamps,
+										modified.sectionName,
+										mostRecentLine,
+										newSectionLineNum
+									);
+								}
+
+								await this.saveSettings();
+								this.lastContent = updatedContent;
+								return;
+							}
+						}
+					} else {
+						const markerRegex = new RegExp(`^::${modified.sectionName}(\\s+\\[.*?\\])?$`);
+						let modifiedSectionLineNum = -1;
+						for (let j = cursorPos.line; j >= 0; j--) {
+							const line = currentLines[j];
+							if (!line || (line.trim() === '' && j < cursorPos.line)) break;
+							if (line && markerRegex.test(line)) {
+								modifiedSectionLineNum = j;
+								break;
+							}
+						}
+						if (modifiedSectionLineNum === -1) {
+							modifiedSectionLineNum = allLineNumbers[0] ?? -1;
+						}
+
+						if (modifiedSectionLineNum !== -1) {
+							const otherLineNumbers = allLineNumbers.filter(ln => ln !== modifiedSectionLineNum);
+							const shouldSync = shouldSyncSection(
+								this.timestamps,
+								modified.sectionName,
+								modifiedSectionLineNum,
+								otherLineNumbers
+							);
+
+							if (shouldSync) {
+								const now = Date.now();
+								const syncedContent = syncSection(
+									currentContent,
+									modified.sectionName,
+									modified.newContent,
+									this.settings.debugMode ? now : undefined,
+									useClosingTag,
+								);
+
+								if (syncedContent !== currentContent) {
+									editor.getDoc().setValue(syncedContent);
+									editor.setCursor(cursorPos);
+
+									const newLines = syncedContent.split('\n');
+									const allUpdatedLineNumbers = getInstanceLineNumbers(newLines, modified.sectionName);
+									this.timestamps = syncTimestamps(
+										this.timestamps,
+										modified.sectionName,
+										modifiedSectionLineNum,
+										allUpdatedLineNumbers,
+										now
+									);
+
+									await this.saveSettings();
+									this.lastContent = syncedContent;
+									return;
+								}
+							} else {
+								const mostRecentLine = findMostRecentInstance(this.timestamps, modified.sectionName, allLineNumbers);
+								if (mostRecentLine !== null && mostRecentLine !== modifiedSectionLineNum) {
+									const mostRecentContent = this.extractSectionContentAtLine(currentContent, modified.sectionName, mostRecentLine);
+									if (mostRecentContent) {
+										const revertedContent = syncSection(currentContent, modified.sectionName, mostRecentContent, undefined, useClosingTag);
+										editor.getDoc().setValue(revertedContent);
+										editor.setCursor(cursorPos);
+
+										this.timestamps = setInstanceTimestamp(
+											this.timestamps,
+											modified.sectionName,
+											modifiedSectionLineNum,
+											this.timestamps[`${modified.sectionName}:${mostRecentLine}`] ?? Date.now()
+										);
+
+										await this.saveSettings();
+										this.lastContent = revertedContent;
+										return;
+									}
+								}
+							}
+						}
+					}
+				}
+
+				this.lastContent = currentContent;
+				await this.saveSettings();
+			} finally {
+				this.setSyncing(false);
+			}
+		}, 300);
+	}
+
+	private extractSectionContentAtLine(content: string, sectionName: string, lineNumber: number): string | null {
+		const lines = content.split('\n');
+		const line = lines[lineNumber];
+		if (line && line.match(new RegExp(`^::${sectionName}(\\s+\\[.*?\\])?$`))) {
+			const contentLines: string[] = [line];
+			for (let j = lineNumber + 1; j < lines.length; j++) {
+				const nextLine = lines[j];
+				if (!nextLine || nextLine.trim() === '') break;
+				contentLines.push(nextLine);
+			}
+			return contentLines.join('\n');
+		}
+		return null;
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
+		const data = await this.loadData() as {settings?: Partial<LyrioSettings>; timestamps?: TimestampData};
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data?.settings ?? {});
+		this.timestamps = data?.timestamps ?? {};
 	}
 
 	async saveSettings() {
-		await this.saveData(this.settings);
-	}
-}
-
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
+		await this.saveData({
+			settings: this.settings,
+			timestamps: this.timestamps,
+		});
 	}
 }
