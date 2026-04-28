@@ -3,8 +3,11 @@
 	"name": "Lyrio - Song Helper",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Automatically synchronize song sections (Chorus, Verse, Bridge, etc.) across your note. Edit any ::Chorus block and all instances update instantly.",
-	"author": "Song Helper Team",
-	"authorUrl": "https://obsidian.md",
-	"isDesktopOnly": false
+	"description": "Automatically synchronize song sections (Chorus, Verse, Bridge, etc.) across your note.",
+	"author": "Whitte",
+	"authorUrl": "https://github.com/whitte-h",
+	"isDesktopOnly": false,
+	"fundingUrl": {
+    "Ko-fi": "https://ko-fi.com/whitte"
+  }
 }

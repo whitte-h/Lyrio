@@ -166,3 +166,11 @@ Everyone sings along.
 ```
 
 The two `::Verse` blocks have independent lyrics but share the same bar content. All three `::Chorus` blocks stay fully in sync.
+
+## License
+
+MIT
+
+## Support
+If you find this plugin useful and want to support its development, you can buy me a coffee!
+<script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#72a4f2', 'G2G71YMFMC');kofiwidget2.draw();</script> 
