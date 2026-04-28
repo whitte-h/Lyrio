@@ -1,117 +1,168 @@
-# Lyrio - Song Helper for Obsidian
+# Lyrio — Song Helper for Obsidian
 
-Lyrio is an Obsidian plugin that automatically synchronizes song sections (Chorus, Verse, Bridge, etc.) across your notes. Perfect for organizing and maintaining consistency in song lyrics and structures.
+Lyrio keeps song sections in sync across your notes. Tag a block as `::Chorus`, edit it anywhere, and every other `::Chorus` block updates automatically.
 
-## Features
+---
 
-- **Auto-Sync Sections**: Edit any `::Chorus` block and all instances automatically update
-- **Multiple Section Types**: Use any section name you want (`::Verse`, `::Bridge`, `::Prechorus`, etc.)
-- **Smart Detection**: Automatically detects section boundaries (content between marker and blank line)
-- **Debounced Syncing**: Changes are processed with intelligent debouncing to avoid performance issues
-- **Optional Notifications**: Get feedback when sections are synced
-- **Configurable**: Toggle auto-sync and notifications in settings
+## Syntax
 
-## How to Use
+| Form | Meaning |
+|---|---|
+| `::Tag` | Opens a section named `Tag` |
+| `::Tag*` | Local-only marker — changes here never propagate to other instances |
+| `::Tag::` | Closes a section (only when *Use closing tag* is enabled) |
+| `::Tag \| Am C F G \|` | Marker with inline bar content (chords, key, notes…) |
 
-### Basic Syntax
+Section names are **case-sensitive**: `::Chorus` and `::chorus` are treated as different sections.
 
-Write sections in your notes using the `::SectionName` marker:
+---
+
+## Auto-sync
+
+When you edit any section block, Lyrio updates every other instance of that section in the note.
 
 ```
 ::Chorus
-Your chorus lyrics here
-More lyrics in the chorus
-
-Some other content
+La la la
 
 ::Verse
-Verse lyrics here
-More verse content
+My own verse
 
-::Chorus
-(This will auto-sync with the first chorus!)
-
-::Bridge
-Bridge lyrics
-More bridge content
-
-::Chorus
-(All chorus instances stay in sync!)
+::Chorus          ← typing here also updates the block above, and vice versa
+La la la
 ```
 
-### Commands
+A 300 ms debounce prevents excessive updates while you type.
 
-- **Show song sections in this note**: Display all section markers found in the current note
-- **Sync all song sections**: Manually trigger a sync of all sections in the note
+### Auto-fill
 
-### Settings
-
-- **Auto-sync sections**: Enable/disable automatic syncing when you edit a section (default: ON)
-- **Show notifications**: Display notifications when sections are synced (default: ON)
-
-## How It Works
-
-1. When you modify any `::SectionName` block (from the marker to the next blank line), Lyrio detects the change
-2. It automatically finds all other instances of `::SectionName` in the note
-3. All matching sections are updated with the new content
-4. Changes propagate through debouncing (300ms delay to avoid excessive updates)
-
-## Tips
-
-- **Organization**: Keep sections separated by blank lines for best results
-- **Consistent Naming**: Use the same capitalization for section names you want to sync (`::Chorus` will NOT sync with `::chorus`)
-- **Performance**: Large documents with many sections will sync smoothly thanks to debouncing
-- **Manual Sync**: Use the "Sync all song sections" command anytime you want to manually trigger a sync
-
-## Example: Song Structure
+Write a bare `::Tag` with no body and Lyrio immediately fills it with the content of the nearest existing instance:
 
 ```
-# My Song Title
+::Chorus
+La la la la
 
-::Verse
-First verse lyrics
-Go here on separate lines
+::Chorus          ← becomes "La la la la" automatically
+```
+
+---
+
+## Inline bar content
+
+Append `| … |` to any marker to attach metadata (chords, key, capo, etc.) to that section tag:
+
+```
+::Chorus | Am C F G |
+La la la
+```
+
+- Once defined on any instance, typing a bare `::Chorus` elsewhere auto-fills **both** the bar content and the lyrics.
+- Editing the bar content on one marker syncs it to all other `::Chorus` markers.
+
+---
+
+## Closing tags
+
+Enable *Use closing tag* in settings to delimit sections explicitly instead of relying on blank lines:
+
+```
+::Chorus
+La la la
+::Chorus::
+
+Some prose between sections without a blank line.
+
+::Chorus
+La la la
+::Chorus::
+```
+
+---
+
+## Exception tags
+
+Some tags should not replicate their body to other instances. By default **Verse** is an exception tag.
+
+For exception tags:
+- The **color** is applied normally.
+- The **bar content** (`| … |`) syncs across all instances of the same tag — so chords stay consistent.
+- The **body lyrics are not synced** — each instance can have its own unique content.
+
+```
+::Verse | G D Em C |
+First verse lyrics, unique to this block.
+
+::Verse | G D Em C |     ← bar content synced, but lyrics are independent
+Second verse, completely different words.
+```
+
+Configure which tags are exceptions in Settings → *Exception tags* (comma-separated).
+
+---
+
+## Local markers (`::Tag*`)
+
+Add `*` after the tag name to mark an instance as local. Edits to a local block are ignored by the sync engine and never propagate.
+
+```
+::Chorus
+La la la
+
+::Chorus*
+A private scratch version — won't affect other instances.
+```
+
+---
+
+## Settings
+
+| Setting | Default | Description |
+|---|---|---|
+| Auto-sync sections | On | Automatically sync all instances when any is edited |
+| Use closing tag | Off | Use `::Tag::` to close sections instead of blank lines |
+| Color section blocks | Off | Draw a colored left border on body lines matching the tag color |
+| Exception tags | `Verse` | Tags that sync bar content but not body. Comma-separated. |
+
+---
+
+## Commands
+
+**Show song sections in this note** — logs all section markers found in the current note to the developer console.
+
+---
+
+## Example
+
+```
+# My Song
+
+::Verse | G D Em C |
+First verse goes here.
+Each line is its own lyric.
 
 ::PreChorus
-Building up the song
-This part leads to the chorus
+Building up...
 
-::Chorus
-This is the main chorus
-Everyone knows these lines
+::Chorus | Am F C G |
+This is the main chorus.
+Everyone sings along.
 
-::Verse
-Second verse lyrics
-Different from the first
+::Verse | G D Em C |
+Second verse — different words, same chords.
 
 ::PreChorus
-Building up again
-Towards the chorus
+Building up again...
 
-::Chorus
-This is the main chorus
-Everyone knows these lines
+::Chorus | Am F C G |
+This is the main chorus.
+Everyone sings along.
 
 ::Bridge
-A different section
-Breaking up the song structure
+Something different here.
 
-::Chorus
-This is the main chorus
-Everyone knows these lines
-
-::Outro
-Ending the song
-Fade out here
+::Chorus | Am F C G |
+This is the main chorus.
+Everyone sings along.
 ```
 
-## Technical Details
-
-- **Section Markers**: Must start a line with `::` followed by alphanumeric characters (e.g., `::Verse`, `::Chorus2`)
-- **Section Boundaries**: A section continues until a blank line is encountered
-- **Edit Detection**: Lyrio watches for document changes and applies syncing with a 300ms debounce
-- **Performance**: Syncing is instant and doesn't block the editor
-
-## Support
-
-For issues or suggestions, please check the plugin settings and documentation.
+The two `::Verse` blocks have independent lyrics but share the same bar content. All three `::Chorus` blocks stay fully in sync.
