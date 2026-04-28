@@ -1,8 +1,8 @@
-/*
+.lyrio-status svg {
+	animation: lyrio-spin 1s linear infinite;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
+@keyframes lyrio-spin {
+	from { transform: rotate(0deg); }
+	to   { transform: rotate(360deg); }
+}

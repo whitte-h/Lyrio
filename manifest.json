@@ -1,11 +1,10 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "lyrio",
+	"name": "Lyrio - Song Helper",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
+	"description": "Automatically synchronize song sections (Chorus, Verse, Bridge, etc.) across your note. Edit any ::Chorus block and all instances update instantly.",
+	"author": "Song Helper Team",
 	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
 	"isDesktopOnly": false
 }

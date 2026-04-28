@@ -1,90 +1,117 @@
-# Obsidian Sample Plugin
+# Lyrio - Song Helper for Obsidian
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Lyrio is an Obsidian plugin that automatically synchronizes song sections (Chorus, Verse, Bridge, etc.) across your notes. Perfect for organizing and maintaining consistency in song lyrics and structures.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Features
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+- **Auto-Sync Sections**: Edit any `::Chorus` block and all instances automatically update
+- **Multiple Section Types**: Use any section name you want (`::Verse`, `::Bridge`, `::Prechorus`, etc.)
+- **Smart Detection**: Automatically detects section boundaries (content between marker and blank line)
+- **Debounced Syncing**: Changes are processed with intelligent debouncing to avoid performance issues
+- **Optional Notifications**: Get feedback when sections are synced
+- **Configurable**: Toggle auto-sync and notifications in settings
 
-## First time developing plugins?
+## How to Use
 
-Quick starting guide for new plugin devs:
+### Basic Syntax
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+Write sections in your notes using the `::SectionName` marker:
 
-## Releasing new releases
+```
+::Chorus
+Your chorus lyrics here
+More lyrics in the chorus
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+Some other content
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+::Verse
+Verse lyrics here
+More verse content
 
-## Adding your plugin to the community plugin list
+::Chorus
+(This will auto-sync with the first chorus!)
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+::Bridge
+Bridge lyrics
+More bridge content
 
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+::Chorus
+(All chorus instances stay in sync!)
 ```
 
-If you have multiple URLs, you can also do:
+### Commands
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+- **Show song sections in this note**: Display all section markers found in the current note
+- **Sync all song sections**: Manually trigger a sync of all sections in the note
+
+### Settings
+
+- **Auto-sync sections**: Enable/disable automatic syncing when you edit a section (default: ON)
+- **Show notifications**: Display notifications when sections are synced (default: ON)
+
+## How It Works
+
+1. When you modify any `::SectionName` block (from the marker to the next blank line), Lyrio detects the change
+2. It automatically finds all other instances of `::SectionName` in the note
+3. All matching sections are updated with the new content
+4. Changes propagate through debouncing (300ms delay to avoid excessive updates)
+
+## Tips
+
+- **Organization**: Keep sections separated by blank lines for best results
+- **Consistent Naming**: Use the same capitalization for section names you want to sync (`::Chorus` will NOT sync with `::chorus`)
+- **Performance**: Large documents with many sections will sync smoothly thanks to debouncing
+- **Manual Sync**: Use the "Sync all song sections" command anytime you want to manually trigger a sync
+
+## Example: Song Structure
+
+```
+# My Song Title
+
+::Verse
+First verse lyrics
+Go here on separate lines
+
+::PreChorus
+Building up the song
+This part leads to the chorus
+
+::Chorus
+This is the main chorus
+Everyone knows these lines
+
+::Verse
+Second verse lyrics
+Different from the first
+
+::PreChorus
+Building up again
+Towards the chorus
+
+::Chorus
+This is the main chorus
+Everyone knows these lines
+
+::Bridge
+A different section
+Breaking up the song structure
+
+::Chorus
+This is the main chorus
+Everyone knows these lines
+
+::Outro
+Ending the song
+Fade out here
 ```
 
-## API Documentation
+## Technical Details
 
-See https://docs.obsidian.md
+- **Section Markers**: Must start a line with `::` followed by alphanumeric characters (e.g., `::Verse`, `::Chorus2`)
+- **Section Boundaries**: A section continues until a blank line is encountered
+- **Edit Detection**: Lyrio watches for document changes and applies syncing with a 300ms debounce
+- **Performance**: Syncing is instant and doesn't block the editor
+
+## Support
+
+For issues or suggestions, please check the plugin settings and documentation.
