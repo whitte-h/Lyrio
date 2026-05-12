@@ -8,16 +8,16 @@ importers:
 
   .:
     dependencies:
+      obsidian:
+        specifier: latest
+        version: 1.12.3(@codemirror/state@6.5.0)(@codemirror/view@6.38.6)
+    devDependencies:
       '@codemirror/state':
         specifier: 6.5.0
         version: 6.5.0
       '@codemirror/view':
         specifier: 6.38.6
         version: 6.38.6
-      obsidian:
-        specifier: latest
-        version: 1.12.3(@codemirror/state@6.5.0)(@codemirror/view@6.38.6)
-    devDependencies:
       '@eslint/js':
         specifier: 9.30.1
         version: 9.30.1

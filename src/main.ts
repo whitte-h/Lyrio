@@ -19,7 +19,7 @@ export default class LyrioPlugin extends Plugin {
 	settings: LyrioSettings;
 	private timestamps: TimestampData = {};
 	private lastContent: string = '';
-	private syncTimeout: ReturnType<typeof window.setTimeout> | null = null;
+	private syncTimeout: number | null = null;
 	private statusBarItem: HTMLElement | null = null;
 
 	async onload() {

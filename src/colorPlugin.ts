@@ -1,5 +1,5 @@
-import { ViewPlugin, ViewUpdate, Decoration, DecorationSet, EditorView } from '@codemirror/view';
-import { RangeSetBuilder, StateEffect } from '@codemirror/state';
+import { ViewPlugin, ViewUpdate, Decoration, EditorView } from '@codemirror/view';
+import { type RangeSet, RangeSetBuilder, StateEffect } from '@codemirror/state';
 
 export const refreshEffect = StateEffect.define<void>();
 
@@ -36,7 +36,7 @@ function buildDecorations(
 	view: EditorView,
 	getColorBlocks: () => boolean,
 	getUseClosingTag: () => boolean,
-): DecorationSet {
+): RangeSet<Decoration> {
 	const builder = new RangeSetBuilder<Decoration>();
 	const colorBlocks = getColorBlocks();
 	const useClosingTag = getUseClosingTag();
@@ -101,7 +101,7 @@ function buildDecorations(
 
 export function createColorPlugin(getColorBlocks: () => boolean, getUseClosingTag: () => boolean) {
 	class Plugin {
-		decorations: DecorationSet;
+		decorations: RangeSet<Decoration>;
 
 		constructor(view: EditorView) {
 			this.decorations = buildDecorations(view, getColorBlocks, getUseClosingTag);
@@ -115,5 +115,5 @@ export function createColorPlugin(getColorBlocks: () => boolean, getUseClosingTa
 		}
 	}
 
-	return ViewPlugin.fromClass(Plugin, { decorations: (v: { decorations: DecorationSet }) => v.decorations });
+	return ViewPlugin.fromClass(Plugin, { decorations: (v: { decorations: RangeSet<Decoration> }) => v.decorations });
 }
