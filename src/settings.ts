@@ -26,7 +26,7 @@ export class LyrioSettingTab extends PluginSettingTab {
 	display(): void {
 		const {containerEl} = this;
 		containerEl.empty();
-		containerEl.createEl('h2', {text: 'Lyrio - Song Helper Settings'});
+		new Setting(containerEl).setName('Lyrio - Song Helper Settings').setHeading();
 
 		new Setting(containerEl)
 			.setName('Auto-sync sections')
@@ -72,7 +72,7 @@ export class LyrioSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		containerEl.createEl('div', {
+		containerEl.createDiv({
 			text: '::Tag — syncs all instances  |  ::Tag* — local only  |  ::Tag:: — closing tag (when enabled)',
 			attr: { style: 'margin-top: 20px; padding: 10px; background-color: var(--background-secondary); border-radius: 5px;' }
 		});

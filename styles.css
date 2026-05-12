@@ -6,3 +6,16 @@
 	from { transform: rotate(0deg); }
 	to   { transform: rotate(360deg); }
 }
+
+.lyrio-status {
+	display: none;
+}
+
+.lyrio-status.is-active {
+	display: flex;
+}
+
+.lyrio-tag-marker {
+	color: var(--lyrio-tag-color);
+	font-weight: 600;
+}
