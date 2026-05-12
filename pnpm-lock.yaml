@@ -13,7 +13,7 @@ importers:
         version: 1.12.3(@codemirror/state@6.6.0)(@codemirror/view@6.42.1)
     devDependencies:
       '@codemirror/state':
-        specifier: ^6.6.0
+        specifier: ^6.5.0
         version: 6.6.0
       '@codemirror/view':
         specifier: ^6.41.1
