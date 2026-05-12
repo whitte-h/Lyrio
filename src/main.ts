@@ -19,7 +19,7 @@ export default class LyrioPlugin extends Plugin {
 	settings: LyrioSettings;
 	private timestamps: TimestampData = {};
 	private lastContent: string = '';
-	private syncTimeout: ReturnType<typeof activeWindow.setTimeout> | null = null;
+	private syncTimeout: ReturnType<typeof window.setTimeout> | null = null;
 	private statusBarItem: HTMLElement | null = null;
 
 	async onload() {
@@ -64,20 +64,20 @@ export default class LyrioPlugin extends Plugin {
 					.map((line, idx) => ({line, idx}))
 					.filter(({line}) => line.match(/^::\w+/))
 					.map(({line, idx}) => `Line ${idx + 1}: ${line}`);
-				console.log('Lyrio sections:', sections.length ? sections : '(none)');
+				console.debug('Lyrio sections:', sections.length ? sections : '(none)');
 			}
 		});
 	}
 
 	onunload() {
-		if (this.syncTimeout) activeWindow.clearTimeout(this.syncTimeout);
+		if (this.syncTimeout) window.clearTimeout(this.syncTimeout);
 	}
 
 	applySettingsChange() {
 		this.lastContent = '';
 		this.app.workspace.iterateAllLeaves((leaf) => {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const cm = (leaf.view as Record<string, any>).editor?.cm as { dispatch?: (tx: unknown) => void } | undefined;
+			const editor = (leaf.view as unknown as Record<string, unknown>).editor as Record<string, unknown> | undefined;
+			const cm = editor?.['cm'] as { dispatch?: (tx: unknown) => void } | undefined;
 			if (cm && typeof cm.dispatch === 'function') {
 				cm.dispatch({ effects: refreshEffect.of(undefined) });
 			}
@@ -99,9 +99,9 @@ export default class LyrioPlugin extends Plugin {
 		this.timestamps = cleanupTimestamps(this.timestamps, currentLines);
 		this.setSyncing(true);
 
-		if (this.syncTimeout) activeWindow.clearTimeout(this.syncTimeout);
+		if (this.syncTimeout) window.clearTimeout(this.syncTimeout);
 
-		this.syncTimeout = activeWindow.setTimeout(async () => {
+		this.syncTimeout = window.setTimeout(async () => {
 			try {
 				const cursorPos = editor.getCursor();
 				const modified = detectModifiedSection(this.lastContent, currentContent, useClosingTag);

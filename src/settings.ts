@@ -26,7 +26,7 @@ export class LyrioSettingTab extends PluginSettingTab {
 	display(): void {
 		const {containerEl} = this;
 		containerEl.empty();
-		new Setting(containerEl).setName('Lyrio - Song Helper Settings').setHeading();
+		new Setting(containerEl).setName('Song helper').setHeading();
 
 		new Setting(containerEl)
 			.setName('Auto-sync sections')
