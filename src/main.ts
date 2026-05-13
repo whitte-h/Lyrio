@@ -19,7 +19,7 @@ export default class LyrioPlugin extends Plugin {
 	settings: LyrioSettings;
 	private timestamps: TimestampData = {};
 	private lastContent: string = '';
-	private syncTimeout: NodeJS.Timeout | null = null;
+	private syncTimeout: number | null = null;
 	private statusBarItem: HTMLElement | null = null;
 
 	async onload() {
@@ -30,7 +30,6 @@ export default class LyrioPlugin extends Plugin {
 		this.statusBarItem = this.addStatusBarItem();
 		setIcon(this.statusBarItem, 'refresh-cw');
 		this.statusBarItem.addClass('lyrio-status');
-		this.statusBarItem.style.display = 'none';
 
 		this.registerEditorExtension(
 			createColorPlugin(
@@ -44,8 +43,8 @@ export default class LyrioPlugin extends Plugin {
 				const text = p.textContent ?? '';
 				const m = text.match(/^::(\w+)(\*)?/);
 				if (m?.[1]) {
-					(p as HTMLElement).style.color = getTagColor(m[1]);
-					(p as HTMLElement).style.fontWeight = '600';
+					p.style.setProperty('--lyrio-tag-color', getTagColor(m[1]));
+					p.addClass('lyrio-tag-marker');
 				}
 			});
 		});
@@ -57,7 +56,7 @@ export default class LyrioPlugin extends Plugin {
 		);
 
 		this.addCommand({
-			id: 'lyrio-show-sections',
+			id: 'show-sections',
 			name: 'Show song sections in this note',
 			editorCallback: (editor: Editor) => {
 				const lines = editor.getDoc().getValue().split('\n');
@@ -65,19 +64,20 @@ export default class LyrioPlugin extends Plugin {
 					.map((line, idx) => ({line, idx}))
 					.filter(({line}) => line.match(/^::\w+/))
 					.map(({line, idx}) => `Line ${idx + 1}: ${line}`);
-				console.log('Lyrio sections:', sections.length ? sections : '(none)');
+				console.debug('Lyrio sections:', sections.length ? sections : '(none)');
 			}
 		});
 	}
 
 	onunload() {
-		if (this.syncTimeout) clearTimeout(this.syncTimeout);
+		if (this.syncTimeout) window.clearTimeout(this.syncTimeout);
 	}
 
 	applySettingsChange() {
 		this.lastContent = '';
 		this.app.workspace.iterateAllLeaves((leaf) => {
-			const cm = (leaf.view as any).editor?.cm;
+			const editor = (leaf.view as unknown as Record<string, unknown>).editor as Record<string, unknown> | undefined;
+			const cm = editor?.['cm'] as { dispatch?: (tx: unknown) => void } | undefined;
 			if (cm && typeof cm.dispatch === 'function') {
 				cm.dispatch({ effects: refreshEffect.of(undefined) });
 			}
@@ -86,7 +86,7 @@ export default class LyrioPlugin extends Plugin {
 
 	private setSyncing(active: boolean) {
 		if (!this.statusBarItem) return;
-		this.statusBarItem.style.display = active ? '' : 'none';
+		this.statusBarItem.toggleClass('is-active', active);
 	}
 
 	private handleEditorChange(editor: Editor) {
@@ -99,9 +99,9 @@ export default class LyrioPlugin extends Plugin {
 		this.timestamps = cleanupTimestamps(this.timestamps, currentLines);
 		this.setSyncing(true);
 
-		if (this.syncTimeout) clearTimeout(this.syncTimeout);
+		if (this.syncTimeout) window.clearTimeout(this.syncTimeout);
 
-		this.syncTimeout = setTimeout(async () => {
+		this.syncTimeout = window.setTimeout(() => { void (async () => {
 			try {
 				const cursorPos = editor.getCursor();
 				const modified = detectModifiedSection(this.lastContent, currentContent, useClosingTag);
@@ -270,7 +270,7 @@ export default class LyrioPlugin extends Plugin {
 			} finally {
 				this.setSyncing(false);
 			}
-		}, 300);
+		})(); }, 300);
 	}
 
 	private isExceptionTag(name: string): boolean {

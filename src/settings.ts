@@ -26,7 +26,7 @@ export class LyrioSettingTab extends PluginSettingTab {
 	display(): void {
 		const {containerEl} = this;
 		containerEl.empty();
-		containerEl.createEl('h2', {text: 'Lyrio - Song Helper Settings'});
+		new Setting(containerEl).setName('Song helper').setHeading();
 
 		new Setting(containerEl)
 			.setName('Auto-sync sections')
@@ -41,7 +41,7 @@ export class LyrioSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Use closing tag')
-			.setDesc('Delimit sections with ::Tag (open) and ::Tag:: (close) instead of a blank line')
+			.setDesc('Delimit sections with ::tag (open) and ::tag:: (close) instead of a blank line')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.useClosingTag)
 				.onChange(async (value) => {
@@ -65,14 +65,14 @@ export class LyrioSettingTab extends PluginSettingTab {
 			.setName('Exception tags')
 			.setDesc('Tags that sync only their bar content (| … |), not body lyrics. Comma-separated.')
 			.addText(text => text
-				.setPlaceholder('Verse, Bridge, …')
+				.setPlaceholder('Verse, bridge, …')
 				.setValue(this.plugin.settings.exceptionTags.join(', '))
 				.onChange(async (value) => {
 					this.plugin.settings.exceptionTags = value.split(',').map(t => t.trim()).filter(Boolean);
 					await this.plugin.saveSettings();
 				}));
 
-		containerEl.createEl('div', {
+		containerEl.createDiv({
 			text: '::Tag — syncs all instances  |  ::Tag* — local only  |  ::Tag:: — closing tag (when enabled)',
 			attr: { style: 'margin-top: 20px; padding: 10px; background-color: var(--background-secondary); border-radius: 5px;' }
 		});
