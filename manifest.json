@@ -1,7 +1,7 @@
 {
 	"id": "lyrio",
 	"name": "Lyrio - Song Helper",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "Automatically synchronize song sections (Chorus, Verse, Bridge, etc.) across your note.",
 	"author": "Whitte",
