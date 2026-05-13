@@ -101,7 +101,7 @@ export default class LyrioPlugin extends Plugin {
 
 		if (this.syncTimeout) window.clearTimeout(this.syncTimeout);
 
-		this.syncTimeout = window.setTimeout(async () => {
+		this.syncTimeout = window.setTimeout(() => { void (async () => {
 			try {
 				const cursorPos = editor.getCursor();
 				const modified = detectModifiedSection(this.lastContent, currentContent, useClosingTag);
@@ -270,7 +270,7 @@ export default class LyrioPlugin extends Plugin {
 			} finally {
 				this.setSyncing(false);
 			}
-		}, 300);
+		})(); }, 300);
 	}
 
 	private isExceptionTag(name: string): boolean {

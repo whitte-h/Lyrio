@@ -1,4 +1,4 @@
-import { ViewPlugin, ViewUpdate, Decoration, EditorView } from '@codemirror/view';
+import { ViewPlugin, ViewUpdate, Decoration, type DecorationSet, EditorView } from '@codemirror/view';
 import { type RangeSet, RangeSetBuilder, StateEffect } from '@codemirror/state';
 
 export const refreshEffect = StateEffect.define<void>();
@@ -115,5 +115,5 @@ export function createColorPlugin(getColorBlocks: () => boolean, getUseClosingTa
 		}
 	}
 
-	return ViewPlugin.fromClass(Plugin, { decorations: (v: { decorations: RangeSet<Decoration> }) => v.decorations });
+	return ViewPlugin.fromClass(Plugin, { decorations: (v: { decorations: RangeSet<Decoration> }) => v.decorations as unknown as DecorationSet });
 }
